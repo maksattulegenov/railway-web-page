@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signature Draw - Telegram Mini App</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✍️ Signature Draw</h1>
+            <p>Draw your signature below</p>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="signatureCanvas" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="pen-controls">
+                <label for="penSize">Pen Size:</label>
+                <input type="range" id="penSize" min="1" max="10" value="3">
+                <span id="penSizeValue">3</span>
+            </div>
+            
+            <div class="color-controls">
+                <label for="penColor">Color:</label>
+                <input type="color" id="penColor" value="#000000">
+            </div>
+            
+            <div class="buttons">
+                <button id="clearBtn" class="btn btn-clear">🗑️ Clear</button>
+                <button id="saveBtn" class="btn btn-save">💾 Save as Image</button>
+            </div>
+        </div>
+        
+        <div class="info">
+            <p>👆 Use your finger or mouse to draw your signature</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

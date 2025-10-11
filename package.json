@@ -1,0 +1,19 @@
+{
+  "name": "signature-draw-app",
+  "version": "1.0.0",
+  "description": "A web app for drawing and saving signatures, optimized for Telegram Mini Apps",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["signature", "drawing", "telegram", "mini-app", "canvas"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
