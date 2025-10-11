@@ -212,3 +212,64 @@ body {
 .saving {
     animation: pulse 1s infinite;
 }
+
+/* Notification styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4a5568;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    animation: slideDown 0.3s ease-out;
+    max-width: 90%;
+    text-align: center;
+}
+
+.notification-success {
+    background: #38a169;
+}
+
+.notification-error {
+    background: #e53e3e;
+}
+
+.notification-info {
+    background: #3182ce;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Telegram-specific styles */
+.telegram-mode {
+    background: var(--tg-theme-bg-color, #ffffff);
+    color: var(--tg-theme-text-color, #000000);
+}
+
+.telegram-mode .container {
+    background: var(--tg-theme-bg-color, #ffffff);
+    box-shadow: none;
+    border: 1px solid var(--tg-theme-hint-color, #e2e8f0);
+}
+
+.telegram-mode .header h1 {
+    color: var(--tg-theme-text-color, #4a5568);
+}
+
+.telegram-mode .header p {
+    color: var(--tg-theme-hint-color, #718096);
+}

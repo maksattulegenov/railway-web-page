@@ -34,10 +34,40 @@ A simple web application for drawing and saving digital signatures, optimized fo
 
 ## Telegram Mini App Setup
 
-1. Create a new bot with [@BotFather](https://t.me/botfather)
-2. Use `/newapp` command to create a Mini App
-3. Set your Railway deployment URL as the Mini App URL
-4. Your Mini App will be ready to use!
+### Step 1: Create Your Bot
+1. Message [@BotFather](https://t.me/botfather) on Telegram
+2. Use `/newbot` command to create a new bot
+3. Get your bot token (save it securely)
+
+### Step 2: Create Mini App
+1. Use `/newapp` command with @BotFather
+2. Select your bot
+3. Provide app details:
+   - **App Name**: Signature Draw
+   - **Description**: Draw and save digital signatures
+   - **Photo**: Upload an icon (optional)
+   - **Web App URL**: `https://railway-web-page-production.up.railway.app`
+
+### Step 3: Set Up Bot Handler (Optional)
+If you want to receive the signature data in your bot:
+
+1. Use the provided `telegram_bot_example.py` file
+2. Replace `YOUR_BOT_TOKEN_HERE` with your actual bot token
+3. Install required packages:
+   ```bash
+   pip install python-telegram-bot pillow
+   ```
+4. Run the bot:
+   ```bash
+   python telegram_bot_example.py
+   ```
+
+### Step 4: Test Your Mini App
+1. Open your bot in Telegram
+2. Send `/start` command
+3. Click the "✍️ Draw Signature" button
+4. Draw your signature and click "Send Signature to Bot"
+5. The signature will be sent back to your bot as an image
 
 ## Usage
 
