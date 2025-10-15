@@ -3,8 +3,11 @@ let tg = window.Telegram?.WebApp;
 let isTelegramApp = false;
 let isInitialized = false;
 
+console.log('Checking Telegram Web App availability:', !!tg);
+
 if (tg) {
     try {
+        console.log('Initializing Telegram Web App...');
         tg.ready();
         isTelegramApp = true;
         
@@ -16,12 +19,20 @@ if (tg) {
             if (tg.disableClosingConfirmation) {
                 tg.disableClosingConfirmation();
             }
+            
+            // Log user data for debugging
+            console.log('Telegram user data:', tg.initDataUnsafe?.user);
+            console.log('Telegram platform:', tg.platform);
+            
             isInitialized = true;
+            console.log('Telegram Web App initialized successfully');
         }
     } catch (error) {
         console.error('Telegram Web App error:', error);
         isTelegramApp = false;
     }
+} else {
+    console.log('Not running in Telegram Web App - normal browser mode');
 }
 
 // Canvas and drawing variables
@@ -204,10 +215,19 @@ function hasSignature() {
 
 // Save button - show preview
 saveBtn.addEventListener('click', () => {
+    console.log('Save button clicked');
+    
     if (!hasSignature()) {
-        alert('Пожалуйста, нарисуйте подпись!');
+        const message = 'Пожалуйста, нарисуйте подпись!';
+        if (isTelegramApp && tg && tg.showAlert) {
+            tg.showAlert(message);
+        } else {
+            alert(message);
+        }
         return;
     }
+    
+    console.log('Creating signature preview...');
     
     // Create export canvas with white background
     const exportCanvas = document.createElement('canvas');
@@ -222,19 +242,37 @@ saveBtn.addEventListener('click', () => {
     
     // Get image data
     currentSignatureData = exportCanvas.toDataURL('image/png');
+    console.log('Signature data created, length:', currentSignatureData.length);
     
     // Show preview
     previewImage.src = currentSignatureData;
     preview.classList.remove('hidden');
     
+    // Update main button text in Telegram
+    if (isTelegramApp && tg && tg.MainButton) {
+        tg.MainButton.text = "Отправить подпись";
+    }
+    
     // Scroll to preview
     preview.scrollIntoView({ behavior: 'smooth' });
+    
+    console.log('Preview shown successfully');
 });
 
 // Redraw button
 redrawBtn.addEventListener('click', () => {
+    console.log('Redraw button clicked');
     preview.classList.add('hidden');
     currentSignatureData = null;
+    
+    // Reset main button text in Telegram
+    if (isTelegramApp && tg && tg.MainButton) {
+        tg.MainButton.text = "Сохранить подпись";
+    }
+    
+    // Re-enable confirm button
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Подтвердить';
 });
 
 // Confirm button - final save
@@ -254,12 +292,22 @@ confirmBtn.addEventListener('click', () => {
                 username: tg.initDataUnsafe?.user?.username || 'unknown'
             };
             
+            console.log('Sending signature data to Telegram bot...');
             tg.sendData(JSON.stringify(signatureData));
             
             confirmBtn.textContent = 'Отправлено!';
+            confirmBtn.disabled = true;
+            
+            // Close mini-app after successful send
             setTimeout(() => {
-                if (tg.close) tg.close();
-            }, 1000);
+                console.log('Closing Telegram Mini App...');
+                if (tg.close) {
+                    tg.close();
+                } else {
+                    console.log('tg.close not available, trying alternative...');
+                    window.close();
+                }
+            }, 1500);
             
         } catch (error) {
             console.error('Telegram send error:', error);
@@ -301,9 +349,15 @@ if (tg && isTelegramApp && isInitialized) {
             tg.MainButton.onClick(() => {
                 if (preview.classList.contains('hidden')) {
                     // First click - show preview
-                    saveBtn.click();
+                    if (hasSignature()) {
+                        saveBtn.click();
+                    } else {
+                        if (tg.showAlert) {
+                            tg.showAlert('Пожалуйста, нарисуйте подпись! ✍️');
+                        }
+                    }
                 } else {
-                    // Second click - send to bot
+                    // Second click - send to bot and close
                     confirmBtn.click();
                 }
             });
