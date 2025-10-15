@@ -48,10 +48,32 @@
             background: #6c757d;
             cursor: not-allowed;
         }
+        #status {
+            font-weight: bold;
+            text-align: center;
+        }
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
     </style>
 </head>
 <body>
     <h1>Нарисуйте вашу подпись</h1>
+    <div id="status" style="margin: 10px 0; padding: 10px; border-radius: 5px; display: none;">
+        <span id="statusText"></span>
+    </div>
     <canvas id="canvas" width="400" height="200"></canvas>
     <div class="buttons">
         <button id="clearBtn">Очистить</button>
@@ -72,6 +94,11 @@
             tg.expand();
             console.log('✅ Telegram Web App initialized');
             console.log('👤 User:', tg.initDataUnsafe?.user);
+            showStatus('Telegram приложение готово!', 'success');
+            setTimeout(hideStatus, 2000);
+        } else {
+            showStatus('Работаем в браузере (не Telegram)', 'info');
+            setTimeout(hideStatus, 3000);
         }
 
         // Canvas setup
@@ -79,6 +106,20 @@
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
         const sendBtn = document.getElementById('sendBtn');
+        const statusDiv = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+
+        // Status functions
+        function showStatus(message, type = 'info') {
+            statusText.textContent = message;
+            statusDiv.className = `status-${type}`;
+            statusDiv.style.display = 'block';
+            console.log(`📢 Status (${type}):`, message);
+        }
+
+        function hideStatus() {
+            statusDiv.style.display = 'none';
+        }
 
         // Drawing variables
         let isDrawing = false;
@@ -153,6 +194,12 @@
         // Send button
         sendBtn.addEventListener('click', () => {
             console.log('📤 Send button clicked');
+            console.log('🔍 Telegram Web App status:', {
+                isTelegramApp: isTelegramApp,
+                tg: !!tg,
+                tgReady: tg ? tg.isReady : false,
+                sendData: tg ? typeof tg.sendData : 'undefined'
+            });
             
             // Check if something is drawn
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -168,11 +215,12 @@
             
             if (!hasContent) {
                 console.log('❌ No signature drawn');
-                alert('Пожалуйста, нарисуйте подпись!');
+                showStatus('Пожалуйста, нарисуйте подпись!', 'error');
                 return;
             }
             
             console.log('✅ Signature detected, preparing to send...');
+            showStatus('Подготовка к отправке...', 'info');
             
             // Disable button
             sendBtn.disabled = true;
@@ -182,8 +230,9 @@
             const signatureData = canvas.toDataURL('image/png');
             console.log('🖼️ Signature image created, size:', signatureData.length);
             
-            if (isTelegramApp && tg) {
+            if (isTelegramApp && tg && typeof tg.sendData === 'function') {
                 console.log('📱 Sending to Telegram bot...');
+                showStatus('Отправка в Telegram...', 'info');
                 
                 const data = {
                     type: 'signature_saved',
@@ -202,32 +251,65 @@
                 });
                 
                 try {
+                    console.log('🚀 Calling tg.sendData()...');
                     tg.sendData(JSON.stringify(data));
-                    console.log('✅ Data sent to bot!');
+                    console.log('✅ Data sent to bot successfully!');
                     
                     sendBtn.textContent = 'Отправлено!';
+                    showStatus('Подпись успешно отправлена! Закрываем приложение...', 'success');
                     
-                    // Force close mini-app
-                    console.log('🔒 Closing mini-app...');
+                    // Multiple close attempts
+                    console.log('🔒 Attempting to close mini-app...');
+                    
+                    // Attempt 1: immediate close
                     setTimeout(() => {
+                        console.log('🚪 Close attempt 1: tg.close()');
+                        if (tg.close && typeof tg.close === 'function') {
+                            tg.close();
+                        }
+                    }, 200);
+                    
+                    // Attempt 2: MainButton hide + close
+                    setTimeout(() => {
+                        console.log('🚪 Close attempt 2: MainButton hide + close');
+                        if (tg.MainButton) {
+                            tg.MainButton.hide();
+                        }
                         if (tg.close) {
-                            console.log('🚪 Using tg.close()');
                             tg.close();
                         }
                     }, 500);
                     
+                    // Attempt 3: window.close()
                     setTimeout(() => {
-                        console.log('🚪 Backup close attempt');
+                        console.log('🚪 Close attempt 3: window.close()');
                         window.close();
                     }, 1000);
                     
+                    // Attempt 4: history.back()
+                    setTimeout(() => {
+                        console.log('🚪 Close attempt 4: history.back()');
+                        if (window.history.length > 1) {
+                            window.history.back();
+                        }
+                    }, 1500);
+                    
                 } catch (error) {
                     console.error('❌ Error sending to Telegram:', error);
+                    showStatus('Ошибка отправки: ' + error.message, 'error');
                     sendBtn.disabled = false;
                     sendBtn.textContent = 'Отправить';
                 }
             } else {
                 console.log('💻 Browser mode - downloading image');
+                console.log('🔍 Reason for browser mode:', {
+                    isTelegramApp: isTelegramApp,
+                    tg: !!tg,
+                    sendDataFunction: tg ? typeof tg.sendData : 'undefined'
+                });
+                
+                showStatus('Скачивание подписи...', 'info');
+                
                 // Download for regular browsers
                 const link = document.createElement('a');
                 link.download = 'signature.png';
@@ -235,9 +317,11 @@
                 link.click();
                 
                 sendBtn.textContent = 'Скачано!';
+                showStatus('Подпись сохранена как файл!', 'success');
                 setTimeout(() => {
                     sendBtn.disabled = false;
                     sendBtn.textContent = 'Отправить';
+                    hideStatus();
                 }, 2000);
             }
         });
