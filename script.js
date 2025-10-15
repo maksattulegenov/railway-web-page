@@ -1,19 +1,34 @@
 // Initialize Telegram Web App
 let tg = window.Telegram?.WebApp;
 let isTelegramApp = false;
+let isInitialized = false;
 
 if (tg) {
-    tg.ready();
-    tg.expand();
-    isTelegramApp = true;
-    
-    // Enable closing confirmation
-    tg.enableClosingConfirmation();
-    
-    // Set header color
-    tg.setHeaderColor('#667eea');
-    
-    console.log('Telegram Web App initialized:', tg.initData);
+    try {
+        tg.ready();
+        isTelegramApp = true;
+        
+        // Prevent multiple initializations
+        if (!isInitialized) {
+            tg.expand();
+            
+            // Set header color once
+            if (tg.setHeaderColor) {
+                tg.setHeaderColor('#667eea');
+            }
+            
+            // Disable closing confirmation to prevent issues
+            if (tg.disableClosingConfirmation) {
+                tg.disableClosingConfirmation();
+            }
+            
+            isInitialized = true;
+            console.log('Telegram Web App initialized successfully');
+        }
+    } catch (error) {
+        console.error('Error initializing Telegram Web App:', error);
+        isTelegramApp = false;
+    }
 } else {
     console.log('Not running in Telegram Web App');
 }
@@ -32,27 +47,53 @@ let lastX = 0;
 let lastY = 0;
 
 // Set canvas size for high DPI displays
+let resizeTimeout;
 function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    
-    ctx.scale(dpr, dpr);
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    
-    // Set default drawing properties
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Debounce resize to prevent constant resizing
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        try {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            
+            // Only resize if dimensions actually changed
+            const newWidth = rect.width * dpr;
+            const newHeight = rect.height * dpr;
+            
+            if (canvas.width !== newWidth || canvas.height !== newHeight) {
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                
+                ctx.scale(dpr, dpr);
+                canvas.style.width = rect.width + 'px';
+                canvas.style.height = rect.height + 'px';
+                
+                // Set default drawing properties
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        } catch (error) {
+            console.error('Error resizing canvas:', error);
+        }
+    }, 100);
 }
 
 // Initialize canvas
 resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+
+// Add resize listener with debouncing for mobile
+let orientationChangeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(orientationChangeTimeout);
+    orientationChangeTimeout = setTimeout(resizeCanvas, 200);
+});
+
+// Handle orientation changes on mobile
+window.addEventListener('orientationchange', () => {
+    setTimeout(resizeCanvas, 300);
+});
 
 // Get coordinates for both mouse and touch events
 function getCoordinates(e) {
@@ -268,80 +309,105 @@ function showNotification(message, type = 'info') {
 }
 
 // Telegram Web App specific functionality
-if (tg && isTelegramApp) {
-    // Set theme colors based on Telegram theme
-    if (tg.themeParams) {
-        const root = document.documentElement;
-        root.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
-        root.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
-        root.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
-        root.style.setProperty('--tg-theme-link-color', tg.themeParams.link_color || '#2481cc');
-        root.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#2481cc');
-        root.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-        
-        // Apply Telegram theme to body
-        if (tg.themeParams.bg_color) {
-            document.body.style.background = tg.themeParams.bg_color;
-        }
-    }
-    
-    // Configure Main Button
-    tg.MainButton.text = "Send Signature to Bot";
-    tg.MainButton.color = tg.themeParams?.button_color || '#2481cc';
-    tg.MainButton.textColor = tg.themeParams?.button_text_color || '#ffffff';
-    tg.MainButton.show();
-    
-    // Handle Main Button clicks
-    tg.MainButton.onClick(() => {
-        // Check if there's actually a signature drawn
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const pixels = imageData.data;
-        let hasDrawing = false;
-        
-        // Check if any pixel is not white/transparent
-        for (let i = 0; i < pixels.length; i += 4) {
-            if (pixels[i] !== 255 || pixels[i + 1] !== 255 || pixels[i + 2] !== 255) {
-                hasDrawing = true;
-                break;
+if (tg && isTelegramApp && isInitialized) {
+    // Set theme colors based on Telegram theme (only once)
+    try {
+        if (tg.themeParams) {
+            const root = document.documentElement;
+            
+            // Apply theme colors carefully
+            const themeColors = {
+                '--tg-theme-bg-color': tg.themeParams.bg_color || '#ffffff',
+                '--tg-theme-text-color': tg.themeParams.text_color || '#000000',
+                '--tg-theme-hint-color': tg.themeParams.hint_color || '#999999',
+                '--tg-theme-link-color': tg.themeParams.link_color || '#2481cc',
+                '--tg-theme-button-color': tg.themeParams.button_color || '#2481cc',
+                '--tg-theme-button-text-color': tg.themeParams.button_text_color || '#ffffff'
+            };
+            
+            Object.entries(themeColors).forEach(([property, value]) => {
+                root.style.setProperty(property, value);
+            });
+            
+            // Apply Telegram theme to body
+            if (tg.themeParams.bg_color) {
+                document.body.style.background = tg.themeParams.bg_color;
+                document.body.classList.add('telegram-mode');
             }
         }
         
-        if (hasDrawing) {
-            saveBtn.click();
-        } else {
-            tg.showAlert('Please draw your signature first! ✍️');
+        // Configure Main Button
+        if (tg.MainButton) {
+            tg.MainButton.text = "Отправить подпись боту";
+            tg.MainButton.color = tg.themeParams?.button_color || '#2481cc';
+            tg.MainButton.textColor = tg.themeParams?.button_text_color || '#ffffff';
+            tg.MainButton.show();
+            
+            // Handle Main Button clicks
+            tg.MainButton.onClick(() => {
+                try {
+                    // Check if there's actually a signature drawn
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const pixels = imageData.data;
+                    let hasDrawing = false;
+                    
+                    // Check if any pixel is not white/transparent
+                    for (let i = 0; i < pixels.length; i += 4) {
+                        if (pixels[i] !== 255 || pixels[i + 1] !== 255 || pixels[i + 2] !== 255) {
+                            hasDrawing = true;
+                            break;
+                        }
+                    }
+                    
+                    if (hasDrawing) {
+                        saveBtn.click();
+                    } else {
+                        if (tg.showAlert) {
+                            tg.showAlert('Пожалуйста, нарисуйте подпись! ✍️');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error in MainButton click:', error);
+                }
+            });
         }
-    });
-    
-    // Handle back button if needed
-    tg.BackButton.onClick(() => {
-        tg.close();
-    });
-    
-    // Handle viewport changes
-    tg.onEvent('viewportChanged', () => {
-        resizeCanvas();
-    });
-    
-    // Handle theme changes
-    tg.onEvent('themeChanged', () => {
-        location.reload(); // Simple approach to handle theme changes
-    });
-    
-    // Update UI for Telegram context
-    const header = document.querySelector('.header h1');
-    if (header && tg.initDataUnsafe?.user?.first_name) {
-        header.textContent = `✍️ Hi ${tg.initDataUnsafe.user.first_name}!`;
+        
+        // Remove viewport change listener to prevent blinking
+        // Handle back button if needed
+        if (tg.BackButton) {
+            tg.BackButton.onClick(() => {
+                if (tg.close) {
+                    tg.close();
+                }
+            });
+        }
+        
+        // Update UI for Telegram context
+        const header = document.querySelector('.header h1');
+        if (header && tg.initDataUnsafe?.user?.first_name) {
+            header.textContent = `✍️ Привет, ${tg.initDataUnsafe.user.first_name}!`;
+        }
+        
+        // Hide the regular save button since we're using Telegram's Main Button
+        if (saveBtn) {
+            saveBtn.style.display = 'none';
+        }
+        
+        console.log('Telegram Web App UI configured successfully');
+        
+    } catch (error) {
+        console.error('Error configuring Telegram Web App:', error);
+        // Fallback: show regular save button
+        if (saveBtn) {
+            saveBtn.style.display = 'block';
+        }
     }
-    
-    // Hide the regular save button since we're using Telegram's Main Button
-    saveBtn.style.display = 'none';
     
 } else {
     // Regular web browser - show instructions
     const info = document.querySelector('.info p');
     if (info) {
-        info.innerHTML = '👆 Use your finger or mouse to draw your signature<br>💡 For Telegram integration, open this link in Telegram Mini App';
+        info.innerHTML = '👆 Используйте палец или мышь для рисования подписи<br>💡 Для интеграции с Telegram откройте эту ссылку в Telegram Mini App';
     }
 }
 
