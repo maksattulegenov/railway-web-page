@@ -17,3 +17,13 @@ build/
 coverage/
 *.tgz
 *.tar.gz
+
+# Python bot files (keep local only)
+telegram_bot.py
+requirements.txt
+signatures/
+user_data_*.json
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

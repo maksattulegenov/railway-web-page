@@ -36,6 +36,24 @@ const previewImage = document.getElementById('previewImage');
 const redrawBtn = document.getElementById('redrawBtn');
 const confirmBtn = document.getElementById('confirmBtn');
 
+// Check if all elements exist
+if (!canvas || !ctx || !penSizeSlider || !penSizeValue || !clearBtn || !saveBtn || 
+    !preview || !previewImage || !redrawBtn || !confirmBtn) {
+    console.error('Missing HTML elements!');
+    console.log('Elements check:', {
+        canvas: !!canvas,
+        ctx: !!ctx,
+        penSizeSlider: !!penSizeSlider,
+        penSizeValue: !!penSizeValue,
+        clearBtn: !!clearBtn,
+        saveBtn: !!saveBtn,
+        preview: !!preview,
+        previewImage: !!previewImage,
+        redrawBtn: !!redrawBtn,
+        confirmBtn: !!confirmBtn
+    });
+}
+
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
@@ -282,15 +300,19 @@ if (tg && isTelegramApp && isInitialized) {
             
             tg.MainButton.onClick(() => {
                 if (preview.classList.contains('hidden')) {
+                    // First click - show preview
                     saveBtn.click();
                 } else {
+                    // Second click - send to bot
                     confirmBtn.click();
                 }
             });
         }
         
-        // Hide save button in Telegram
-        saveBtn.style.display = 'none';
+        // Keep save button visible in Telegram for backup
+        if (saveBtn) {
+            saveBtn.style.display = 'block';
+        }
         
     } catch (error) {
         console.error('Telegram setup error:', error);
