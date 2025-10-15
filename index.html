@@ -85,6 +85,7 @@
     </div>
     <div class="buttons">
         <button id="clearBtn">Очистить</button>
+        <button id="testDrawBtn" style="background: #007bff; color: white;">Тест рисования</button>
         <button id="sendBtn">Отправить</button>
     </div>
 
@@ -113,6 +114,7 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const clearBtn = document.getElementById('clearBtn');
+        const testDrawBtn = document.getElementById('testDrawBtn');
         const sendBtn = document.getElementById('sendBtn');
         const statusDiv = document.getElementById('status');
         const statusText = document.getElementById('statusText');
@@ -189,7 +191,7 @@
         }
 
         function startDrawing(e) {
-            console.log('🖱️ Start drawing event:', e.type, e);
+            console.log('🖱️ Start drawing event:', e.type);
             e.preventDefault();
             e.stopPropagation();
             
@@ -197,34 +199,35 @@
             const pos = getPos(e);
             [lastX, lastY] = [pos.x, pos.y];
             
-            // Draw a small dot to mark start
-            ctx.fillStyle = '#000';
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 2, 0, 2 * Math.PI);
-            ctx.fill();
-            
             console.log('🎯 Drawing started at:', { x: lastX, y: lastY });
+            showStatus('Рисование начато...', 'info');
+            
+            // Start a new path
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
         }
 
         function draw(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            if (!isDrawing) return;
+            if (!isDrawing) {
+                console.log('⚠️ Drawing event but not in drawing mode');
+                return;
+            }
             
             const pos = getPos(e);
             console.log('✏️ Drawing line from', { x: lastX, y: lastY }, 'to', pos);
             
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
+            // Draw line to current position
             ctx.lineTo(pos.x, pos.y);
             ctx.stroke();
             
+            // Update last position
             [lastX, lastY] = [pos.x, pos.y];
         }
 
@@ -234,22 +237,54 @@
                 e.preventDefault();
                 e.stopPropagation();
                 isDrawing = false;
+                showStatus('Рисование завершено', 'success');
+                setTimeout(hideStatus, 1000);
             }
         }
 
         // Mouse events
         console.log('🖱️ Adding mouse event listeners...');
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseleave', stopDrawing);
+        canvas.addEventListener('mousedown', (e) => {
+            console.log('🖱️ MOUSEDOWN detected');
+            showStatus('Мышь нажата - начинаем рисовать', 'info');
+            startDrawing(e);
+        });
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                console.log('🖱️ MOUSEMOVE during drawing');
+            }
+            draw(e);
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            console.log('🖱️ MOUSEUP detected');
+            stopDrawing(e);
+        });
+        canvas.addEventListener('mouseleave', (e) => {
+            console.log('🖱️ MOUSELEAVE detected');
+            stopDrawing(e);
+        });
 
         // Touch events
         console.log('👆 Adding touch event listeners...');
-        canvas.addEventListener('touchstart', startDrawing, { passive: false });
-        canvas.addEventListener('touchmove', draw, { passive: false });
-        canvas.addEventListener('touchend', stopDrawing, { passive: false });
-        canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+        canvas.addEventListener('touchstart', (e) => {
+            console.log('👆 TOUCHSTART detected');
+            showStatus('Касание началось - рисуем', 'info');
+            startDrawing(e);
+        }, { passive: false });
+        canvas.addEventListener('touchmove', (e) => {
+            if (isDrawing) {
+                console.log('👆 TOUCHMOVE during drawing');
+            }
+            draw(e);
+        }, { passive: false });
+        canvas.addEventListener('touchend', (e) => {
+            console.log('👆 TOUCHEND detected');
+            stopDrawing(e);
+        }, { passive: false });
+        canvas.addEventListener('touchcancel', (e) => {
+            console.log('👆 TOUCHCANCEL detected');
+            stopDrawing(e);
+        }, { passive: false });
         
         // Click test
         canvas.addEventListener('click', (e) => {
@@ -277,6 +312,42 @@
             setTimeout(() => {
                 clearBtn.textContent = 'Очистить';
             }, 1000);
+        });
+
+        // Test drawing button
+        testDrawBtn.addEventListener('click', () => {
+            console.log('🧪 Manual drawing test');
+            showStatus('Рисуем тестовую подпись...', 'info');
+            
+            // Draw a sample signature
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            // Draw "Test" signature
+            ctx.moveTo(50, 90);
+            ctx.lineTo(100, 90);
+            ctx.moveTo(75, 70);
+            ctx.lineTo(75, 110);
+            
+            ctx.moveTo(120, 90);
+            ctx.lineTo(160, 70);
+            ctx.lineTo(200, 90);
+            ctx.lineTo(160, 110);
+            ctx.lineTo(120, 90);
+            
+            ctx.moveTo(220, 70);
+            ctx.lineTo(220, 110);
+            ctx.lineTo(260, 110);
+            
+            ctx.stroke();
+            
+            showStatus('Тестовая подпись нарисована! Попробуйте рисовать мышью.', 'success');
+            setTimeout(() => {
+                showStatus('Нажмите и тяните мышь для рисования', 'info');
+            }, 2000);
         });
 
         // Test drawing function
