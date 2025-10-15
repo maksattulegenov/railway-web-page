@@ -216,25 +216,34 @@
                 if (tg.sendData && typeof tg.sendData === 'function') {
                     try {
                         console.log('Using tg.sendData()...');
-                        tg.sendData(dataString);
-                        console.log('✅ Data sent via sendData successfully!');
                         
-                        sendBtn.textContent = 'Отправлено!';
-                        sendBtn.style.background = '#28a745';
-                        
-                        // Close after delay
+                        // Wait a bit to ensure WebApp is fully ready
                         setTimeout(() => {
-                            console.log('Closing mini-app...');
-                            if (tg.close) {
-                                tg.close();
+                            try {
+                                tg.sendData(dataString);
+                                console.log('✅ Data sent via sendData successfully!');
+                                
+                                sendBtn.textContent = 'Отправлено!';
+                                sendBtn.style.background = '#28a745';
+                                
+                                // Close after delay
+                                setTimeout(() => {
+                                    console.log('Closing mini-app...');
+                                    if (tg.close) {
+                                        tg.close();
+                                    }
+                                }, 1500);
+                            } catch (delayedError) {
+                                console.error('❌ Delayed sendData error:', delayedError);
+                                tryAlternativeMethod(data);
                             }
-                        }, 1500);
+                        }, 100);
                         
                     } catch (error) {
                         console.error('❌ Error with tg.sendData:', error);
                         console.log('Error details:', error.message, error.name);
                         
-                        // Try alternative method
+                        // Try alternative method immediately
                         await tryAlternativeMethod(data);
                     }
                 } else {
@@ -246,32 +255,10 @@
                 downloadImage(signatureData);
             }
             
-            async function tryAlternativeMethod(data) {
-                console.log('Trying alternative sending methods...');
+            async function tryDirectHTTP(data) {
+                console.log('Using direct HTTP request...');
                 
                 try {
-                    // Method 1: Try postEvent
-                    if (tg.postEvent && typeof tg.postEvent === 'function') {
-                        console.log('Using tg.postEvent()...');
-                        tg.postEvent('web_app_data_send', { data: JSON.stringify(data) });
-                        sendBtn.textContent = 'Отправлено (postEvent)!';
-                        return;
-                    }
-                    
-                    // Method 2: Try MainButton
-                    if (tg.MainButton) {
-                        console.log('Using MainButton...');
-                        tg.MainButton.setText('Отправлено');
-                        tg.MainButton.onClick(() => {
-                            tg.sendData(JSON.stringify(data));
-                        });
-                        sendBtn.textContent = 'Отправлено (MainButton)!';
-                        return;
-                    }
-                    
-                    // Method 3: Direct HTTP request to n8n webhook
-                    console.log('Using direct HTTP request...');
-                    
                     // Get user data from Telegram if available
                     const userData = tg.initDataUnsafe?.user || {};
                     
@@ -308,6 +295,57 @@
                     } else {
                         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
+                    
+                } catch (error) {
+                    console.error('❌ Direct HTTP request failed:', error);
+                    sendBtn.textContent = 'Ошибка HTTP!';
+                    sendBtn.style.background = '#dc3545';
+                    throw error;
+                }
+            }
+
+            async function tryAlternativeMethod(data) {
+                console.log('Trying alternative sending methods...');
+                
+                try {
+                    // Method 1: Try postEvent
+                    if (tg.postEvent && typeof tg.postEvent === 'function') {
+                        console.log('Using tg.postEvent()...');
+                        tg.postEvent('web_app_data_send', { data: JSON.stringify(data) });
+                        sendBtn.textContent = 'Отправлено (postEvent)!';
+                        return;
+                    }
+                    
+                    // Method 2: Try MainButton
+                    if (tg.MainButton) {
+                        console.log('Using MainButton...');
+                        tg.MainButton.setText('Отправить подпись');
+                        tg.MainButton.show();
+                        
+                        // Set up MainButton click handler
+                        tg.MainButton.onClick(() => {
+                            console.log('MainButton clicked, sending data...');
+                            try {
+                                tg.sendData(JSON.stringify(data));
+                                console.log('✅ Data sent via MainButton!');
+                                tg.MainButton.setText('Отправлено!');
+                                setTimeout(() => {
+                                    if (tg.close) tg.close();
+                                }, 1000);
+                            } catch (error) {
+                                console.error('❌ MainButton sendData failed:', error);
+                                // Try direct HTTP as fallback
+                                tryDirectHTTP(data);
+                            }
+                        });
+                        
+                        sendBtn.textContent = 'Отправлено (MainButton)!';
+                        sendBtn.style.background = '#28a745';
+                        return;
+                    }
+                    
+                    // Method 3: Direct HTTP request to n8n webhook
+                    await tryDirectHTTP(data);
                     
                 } catch (fallbackError) {
                     console.error('❌ All methods failed:', fallbackError);
