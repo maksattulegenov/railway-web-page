@@ -21,6 +21,7 @@ coverage/
 # Python bot files (keep local only)
 telegram_bot.py
 requirements.txt
+test_webhook.py
 signatures/
 user_data_*.json
 __pycache__/
