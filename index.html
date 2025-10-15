@@ -263,16 +263,51 @@
                     sendBtn.textContent = 'Отправлено!';
                     sendBtn.style.background = '#28a745';
                     
-                    // Show success message
-                    alert(`✅ Данные отправлены!\n\nФИО: ${completeData.fio}\nДата: ${completeData.birth_date}\nТелефон: ${completeData.phone}\nИИН: ${completeData.iin}\n\nПодпись сохранена и отправлена в систему.`);
+                    // Show simple success message
+                    alert('✅ Данные отправлены!');
                     
-                    // Close after delay if in Telegram
-                    if (isTelegramApp && tg && tg.close) {
-                        setTimeout(() => {
-                            console.log('Closing mini-app...');
-                            tg.close();
-                        }, 2000);
+                    // Send success notification to Telegram bot
+                    if (userData && userData.bot_api_url && userData.chat_id) {
+                        try {
+                            const notificationUrl = `${userData.bot_api_url}/sendMessage`;
+                            const notificationData = {
+                                chat_id: userData.chat_id,
+                                text: '✅ Анкета успешно заполнена и отправлена!\n\n🎉 Спасибо за заполнение! Ваши данные переданы в систему.',
+                                parse_mode: 'HTML'
+                            };
+                            
+                            console.log('📤 Sending success notification to Telegram...');
+                            fetch(notificationUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(notificationData)
+                            }).then(notifResponse => {
+                                if (notifResponse.ok) {
+                                    console.log('✅ Success notification sent to Telegram');
+                                } else {
+                                    console.log('⚠️ Failed to send notification to Telegram');
+                                }
+                            }).catch(notifError => {
+                                console.log('⚠️ Error sending notification:', notifError);
+                            });
+                        } catch (notifError) {
+                            console.log('⚠️ Error preparing notification:', notifError);
+                        }
                     }
+                    
+                    // Close mini-app after successful send
+                    setTimeout(() => {
+                        console.log('Closing mini-app...');
+                        if (isTelegramApp && tg && tg.close) {
+                            tg.close();
+                        } else {
+                            // Fallback: try to signal parent window
+                            window.parent.postMessage({ type: 'close_webapp' }, '*');
+                        }
+                    }, 1500);
+                    
                 } else {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
