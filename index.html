@@ -266,14 +266,14 @@
                     // Show simple success message
                     alert('✅ Данные отправлены!');
                     
-                    // Send success notification to Telegram bot
+                    // Send success notification to Telegram bot via API
                     if (userData && userData.bot_api_url && userData.chat_id) {
                         try {
                             const notificationUrl = `${userData.bot_api_url}/sendMessage`;
                             const notificationData = {
                                 chat_id: userData.chat_id,
-                                text: '✅ Анкета успешно заполнена и отправлена!\n\n🎉 Спасибо за заполнение! Ваши данные переданы в систему.',
-                                parse_mode: 'HTML'
+                                text: '✅ *Анкета успешно заполнена и отправлена!*\n\n🎉 Спасибо за заполнение! Ваши данные переданы в систему.\n\n📄 Все данные включая подпись сохранены и обработаны.',
+                                parse_mode: 'Markdown'
                             };
                             
                             console.log('📤 Sending success notification to Telegram...');
