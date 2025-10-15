@@ -3,47 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
-    <title>Signature Draw - Telegram Mini App</title>
+    <title>Signature Draw</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <meta name="description" content="Draw and save your digital signature">
-    <meta name="robots" content="noindex, nofollow">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="format-detection" content="telephone=no">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>✍️ Signature Draw</h1>
-            <p>Draw your signature below</p>
-        </div>
+        <h1>Подпись</h1>
         
         <div class="canvas-container">
             <canvas id="signatureCanvas" width="400" height="200"></canvas>
         </div>
         
         <div class="controls">
-            <div class="pen-controls">
-                <label for="penSize">Pen Size:</label>
-                <input type="range" id="penSize" min="1" max="10" value="3">
-                <span id="penSizeValue">3</span>
-            </div>
-            
-            <div class="color-controls">
-                <label for="penColor">Color:</label>
-                <input type="color" id="penColor" value="#000000">
-            </div>
-            
-            <div class="buttons">
-                <button id="clearBtn" class="btn btn-clear">🗑️ Clear</button>
-                <button id="saveBtn" class="btn btn-save">💾 Save as Image</button>
-            </div>
+            <input type="range" id="penSize" min="1" max="8" value="3">
+            <span id="penSizeValue">3px</span>
         </div>
         
-        <div class="info">
-            <p>👆 Use your finger or mouse to draw your signature</p>
+        <div class="buttons">
+            <button id="clearBtn" class="btn clear">Очистить</button>
+            <button id="saveBtn" class="btn save">Сохранить</button>
+        </div>
+        
+        <div id="preview" class="preview hidden">
+            <h3>Предварительный просмотр:</h3>
+            <img id="previewImage" alt="Signature preview">
+            <div class="preview-buttons">
+                <button id="redrawBtn" class="btn redraw">Перерисовать</button>
+                <button id="confirmBtn" class="btn confirm">Подтвердить</button>
+            </div>
         </div>
     </div>
 
