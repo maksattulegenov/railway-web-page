@@ -277,9 +277,15 @@ redrawBtn.addEventListener('click', () => {
 
 // Confirm button - final save
 confirmBtn.addEventListener('click', () => {
-    if (!currentSignatureData) return;
+    console.log('Confirm button clicked');
+    
+    if (!currentSignatureData) {
+        console.log('No signature data available');
+        return;
+    }
     
     const timestamp = Date.now();
+    console.log('Preparing to send signature data...');
     
     if (isTelegramApp && tg) {
         try {
@@ -292,28 +298,64 @@ confirmBtn.addEventListener('click', () => {
                 username: tg.initDataUnsafe?.user?.username || 'unknown'
             };
             
-            console.log('Sending signature data to Telegram bot...');
+            console.log('Sending signature data to Telegram bot:', {
+                type: signatureData.type,
+                timestamp: signatureData.timestamp,
+                user_id: signatureData.user_id,
+                username: signatureData.username,
+                image_length: signatureData.image.length
+            });
+            
+            // Send data and immediately try to close
             tg.sendData(JSON.stringify(signatureData));
+            console.log('Data sent to Telegram bot successfully');
             
             confirmBtn.textContent = 'Отправлено!';
             confirmBtn.disabled = true;
             
-            // Close mini-app after successful send
+            // Try multiple methods to close the app
+            console.log('Attempting to close mini-app...');
+            
+            // Method 1: Direct close
+            if (tg.close) {
+                console.log('Trying tg.close()...');
+                tg.close();
+            }
+            
+            // Method 2: MainButton hide and close
             setTimeout(() => {
-                console.log('Closing Telegram Mini App...');
+                console.log('Fallback close attempt 1...');
+                if (tg.MainButton) {
+                    tg.MainButton.hide();
+                }
                 if (tg.close) {
                     tg.close();
-                } else {
-                    console.log('tg.close not available, trying alternative...');
-                    window.close();
                 }
-            }, 1500);
+            }, 500);
+            
+            // Method 3: Force close
+            setTimeout(() => {
+                console.log('Fallback close attempt 2...');
+                try {
+                    window.close();
+                } catch (e) {
+                    console.log('window.close() failed:', e);
+                }
+                
+                // Last resort - redirect to telegram
+                if (tg.initDataUnsafe?.user?.username) {
+                    window.location.href = `https://t.me/${tg.initDataUnsafe.user.username}`;
+                } else {
+                    window.location.href = 'https://t.me';
+                }
+            }, 1000);
             
         } catch (error) {
-            console.error('Telegram send error:', error);
+            console.error('Error sending data to Telegram:', error);
             downloadImage();
         }
     } else {
+        console.log('Not in Telegram app, downloading image...');
         // Download for regular browsers
         downloadImage();
     }
