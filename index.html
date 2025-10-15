@@ -23,6 +23,11 @@
             margin: 20px 0;
             touch-action: none;
             cursor: crosshair;
+            display: block;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
         }
         .buttons {
             margin: 20px 0;
@@ -126,32 +131,55 @@
         let lastX = 0;
         let lastY = 0;
 
-        // Canvas setup
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 3;
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Canvas setup with proper sizing
+        function setupCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            console.log('🎨 Canvas dimensions:', {
+                width: canvas.width,
+                height: canvas.height,
+                clientWidth: canvas.clientWidth,
+                clientHeight: canvas.clientHeight,
+                rect: rect
+            });
+            
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 3;
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
-        console.log('🎨 Canvas initialized');
+        setupCanvas();
+        console.log('🎨 Canvas initialized and ready for drawing');
 
-        // Drawing functions
+        // Drawing functions with better debugging
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            return {
+            const clientX = e.clientX || (e.touches && e.touches[0] && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0] && e.touches[0].clientY);
+            
+            if (clientX === undefined || clientY === undefined) {
+                console.log('⚠️ Could not get coordinates from event:', e);
+                return { x: 0, y: 0 };
+            }
+            
+            const pos = {
                 x: clientX - rect.left,
                 y: clientY - rect.top
             };
+            
+            console.log('📍 Position:', pos, 'from client:', { clientX, clientY }, 'rect:', rect);
+            return pos;
         }
 
         function startDrawing(e) {
+            console.log('🖱️ Start drawing event:', e.type);
             e.preventDefault();
             isDrawing = true;
             const pos = getPos(e);
             [lastX, lastY] = [pos.x, pos.y];
+            console.log('🎯 Drawing started at:', { x: lastX, y: lastY });
         }
 
         function draw(e) {
@@ -159,6 +187,8 @@
             if (!isDrawing) return;
             
             const pos = getPos(e);
+            console.log('✏️ Drawing to:', pos);
+            
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(pos.x, pos.y);
@@ -166,19 +196,33 @@
             [lastX, lastY] = [pos.x, pos.y];
         }
 
-        function stopDrawing() {
-            isDrawing = false;
+        function stopDrawing(e) {
+            if (isDrawing) {
+                console.log('🛑 Stop drawing event:', e.type);
+                isDrawing = false;
+            }
         }
 
         // Mouse events
+        console.log('🖱️ Adding mouse event listeners...');
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
         canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
 
         // Touch events
-        canvas.addEventListener('touchstart', startDrawing);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDrawing);
+        console.log('👆 Adding touch event listeners...');
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing, { passive: false });
+        canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+        
+        // Test events
+        canvas.addEventListener('pointerdown', (e) => {
+            console.log('📌 Pointer down detected:', e);
+        });
+        
+        console.log('✅ All event listeners added to canvas');
 
         // Clear button
         clearBtn.addEventListener('click', () => {
@@ -190,6 +234,25 @@
                 clearBtn.textContent = 'Очистить';
             }, 1000);
         });
+
+        // Test drawing function
+        function testDraw() {
+            console.log('🧪 Testing canvas drawing...');
+            ctx.strokeStyle = '#ff0000';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(50, 50);
+            ctx.lineTo(350, 150);
+            ctx.stroke();
+            console.log('✅ Test line drawn');
+        }
+
+        // Draw test line after 1 second
+        setTimeout(() => {
+            testDraw();
+            showStatus('Тест: красная линия нарисована! Теперь попробуйте рисовать сами.', 'info');
+            setTimeout(hideStatus, 3000);
+        }, 1000);
 
         // Send button
         sendBtn.addEventListener('click', () => {
