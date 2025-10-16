@@ -212,41 +212,79 @@
             const signatureData = canvas.toDataURL('image/png');
             console.log('Signature created, size:', signatureData.length);
             
-            // Prepare complete data package
+            // Prepare complete data package with ALL received information
             const completeData = {
+                // Core form data
                 type: 'complete_form_data',
                 timestamp: Date.now(),
-                signature_image: signatureData,
                 
-                // User data from bot (if available)
+                // User information from bot
                 fio: userData?.fio || 'Unknown',
-                birth_date: userData?.birth_date || 'Unknown',
+                birth_date: userData?.birth_date || 'Unknown', 
                 phone: userData?.phone || 'Unknown',
                 iin: userData?.iin || 'Unknown',
+                
+                // Telegram user info
                 user_id: userData?.user_id || 'Unknown',
                 chat_id: userData?.chat_id || 'Unknown',
                 
-                // Bot response info for n8n
+                // Bot API information for n8n responses
                 bot_token: userData?.bot_token || '',
                 bot_api_url: userData?.bot_api_url || '',
                 
-                source: 'webapp_direct'
+                // Signature data
+                signature_image: signatureData, // Full base64 data URL
+                signature_base64: signatureData.replace('data:image/png;base64,', ''), // Clean base64
+                
+                // Additional metadata
+                source: 'webapp_direct',
+                user_agent: navigator.userAgent,
+                screen_resolution: `${screen.width}x${screen.height}`,
+                
+                // Include ALL extra data from userData if any
+                ...userData // Spread all received data from bot
             };
             
-            console.log('📦 Complete data package:', {
+            // Remove redundant fields to avoid duplication
+            delete completeData.n8n_webhook;
+            
+            console.log('📦 Complete data package being sent to n8n:', {
                 type: completeData.type,
-                fio: completeData.fio,
-                user_id: completeData.user_id,
-                chat_id: completeData.chat_id,
-                signature_size: completeData.signature_image.length,
-                has_bot_token: !!completeData.bot_token
+                timestamp: completeData.timestamp,
+                user_data: {
+                    fio: completeData.fio,
+                    birth_date: completeData.birth_date,
+                    phone: completeData.phone,
+                    iin: completeData.iin,
+                    user_id: completeData.user_id,
+                    chat_id: completeData.chat_id
+                },
+                signature_data: {
+                    has_signature_image: !!completeData.signature_image,
+                    signature_image_size: completeData.signature_image?.length || 0,
+                    has_clean_base64: !!completeData.signature_base64,
+                    signature_base64_size: completeData.signature_base64?.length || 0
+                },
+                bot_integration: {
+                    has_bot_token: !!completeData.bot_token,
+                    has_bot_api_url: !!completeData.bot_api_url
+                },
+                metadata: {
+                    source: completeData.source,
+                    user_agent: completeData.user_agent,
+                    screen_resolution: completeData.screen_resolution
+                },
+                all_received_fields: Object.keys(completeData)
             });
             
             // Send directly to n8n webhook
             const webhookUrl = userData?.n8n_webhook || 'https://primary-production-7d413.up.railway.app/webhook-test/promed';
             
             try {
-                console.log('🌐 Sending to n8n webhook:', webhookUrl);
+                console.log('🌐 Sending complete data package to n8n webhook:', webhookUrl);
+                console.log('📋 Data size:', JSON.stringify(completeData).length, 'characters');
+                console.log('🔍 First 200 chars of payload:', JSON.stringify(completeData).substring(0, 200) + '...');
+                
                 sendBtn.textContent = 'Отправка...';
                 sendBtn.disabled = true;
                 
@@ -254,12 +292,18 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
                     body: JSON.stringify(completeData)
                 });
                 
+                console.log('📡 n8n Response status:', response.status, response.statusText);
+                
                 if (response.ok) {
-                    console.log('✅ Data sent to n8n successfully!');
+                    const responseText = await response.text();
+                    console.log('✅ n8n Response:', responseText);
+                    console.log('✅ Complete data package sent to n8n successfully!');
+                    
                     sendBtn.textContent = 'Отправлено!';
                     sendBtn.style.background = '#28a745';
                     
@@ -287,7 +331,7 @@
                                 if (notifResponse.ok) {
                                     console.log('✅ Success notification sent to Telegram');
                                 } else {
-                                    console.log('⚠️ Failed to send notification to Telegram');
+                                    console.log('⚠️ Failed to send notification to Telegram:', notifResponse.status);
                                 }
                             }).catch(notifError => {
                                 console.log('⚠️ Error sending notification:', notifError);
@@ -309,15 +353,25 @@
                     }, 1500);
                     
                 } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorText = await response.text();
+                    console.error('❌ n8n webhook error response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
                 }
                 
             } catch (error) {
-                console.error('❌ Error sending to n8n:', error);
+                console.error('❌ Error sending complete data package to n8n:', error);
+                console.error('❌ Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    webhookUrl: webhookUrl,
+                    dataSize: JSON.stringify(completeData).length
+                });
+                
                 sendBtn.textContent = 'Ошибка!';
                 sendBtn.style.background = '#dc3545';
                 sendBtn.disabled = false;
-                alert('❌ Ошибка отправки данных. Попробуйте еще раз.');
+                
+                alert(`❌ Ошибка отправки данных в n8n.\n\nОшибка: ${error.message}\n\nПопробуйте еще раз.`);
             }
         });
         
