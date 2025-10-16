@@ -214,15 +214,40 @@
             
             // Prepare complete data package with ALL received information
             const completeData = {
-                // Core form data
+                // Include ALL data from userData first (spread all received data from bot)
+                ...userData,
+                
+                // Core form data (override if needed)
                 type: 'complete_form_data',
                 timestamp: Date.now(),
                 
-                // User information from bot
+                // Basic user information (ensure they exist)
                 fio: userData?.fio || 'Unknown',
                 birth_date: userData?.birth_date || 'Unknown', 
                 phone: userData?.phone || 'Unknown',
                 iin: userData?.iin || 'Unknown',
+                gender: userData?.gender || 'Unknown',
+                
+                // Examination information
+                examination_for: userData?.examination_for || 'Unknown',
+                examination_for_key: userData?.examination_for_key || 'Unknown',
+                
+                // Representative information (for minors)
+                representative_fio: userData?.representative_fio || '',
+                representative_relation: userData?.representative_relation || '',
+                
+                // Medical information
+                allergy: userData?.allergy || 'Unknown',
+                allergy_status: userData?.allergy_status || '',
+                prohibited_procedures: userData?.prohibited_procedures || 'Unknown',
+                
+                // Contact person information
+                contact_person: userData?.contact_person || {},
+                contact_person_fio: userData?.contact_person_fio || '',
+                contact_person_relation: userData?.contact_person_relation || '',
+                
+                // Additional consent information
+                minor_consent: userData?.minor_consent || '',
                 
                 // Telegram user info
                 user_id: userData?.user_id || 'Unknown',
@@ -239,10 +264,7 @@
                 // Additional metadata
                 source: 'webapp_direct',
                 user_agent: navigator.userAgent,
-                screen_resolution: `${screen.width}x${screen.height}`,
-                
-                // Include ALL extra data from userData if any
-                ...userData // Spread all received data from bot
+                screen_resolution: `${screen.width}x${screen.height}`
             };
             
             // Remove redundant fields to avoid duplication
@@ -251,13 +273,35 @@
             console.log('📦 Complete data package being sent to n8n:', {
                 type: completeData.type,
                 timestamp: completeData.timestamp,
-                user_data: {
+                basic_user_data: {
                     fio: completeData.fio,
                     birth_date: completeData.birth_date,
                     phone: completeData.phone,
                     iin: completeData.iin,
+                    gender: completeData.gender,
                     user_id: completeData.user_id,
                     chat_id: completeData.chat_id
+                },
+                examination_data: {
+                    examination_for: completeData.examination_for,
+                    examination_for_key: completeData.examination_for_key
+                },
+                representative_data: {
+                    representative_fio: completeData.representative_fio,
+                    representative_relation: completeData.representative_relation
+                },
+                medical_data: {
+                    allergy: completeData.allergy,
+                    allergy_status: completeData.allergy_status,
+                    prohibited_procedures: completeData.prohibited_procedures
+                },
+                contact_person_data: {
+                    contact_person: completeData.contact_person,
+                    contact_person_fio: completeData.contact_person_fio,
+                    contact_person_relation: completeData.contact_person_relation
+                },
+                consent_data: {
+                    minor_consent: completeData.minor_consent
                 },
                 signature_data: {
                     has_signature_image: !!completeData.signature_image,
@@ -274,7 +318,7 @@
                     user_agent: completeData.user_agent,
                     screen_resolution: completeData.screen_resolution
                 },
-                all_received_fields: Object.keys(completeData)
+                all_received_fields: Object.keys(completeData).sort()
             });
             
             // Send directly to n8n webhook
