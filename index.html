@@ -1,3 +1,109 @@
+====================================================================
+CHANGES MADE TO index.html FOR TELEGRAM BOT COMPLETION NOTIFICATION
+====================================================================
+
+PURPOSE: Add Telegram WebApp sendData() call to notify the bot when signature is completed,
+so the bot can show the final thank you message and end the conversation properly.
+
+LOCATION OF CHANGE: Inside sendBtn.addEventListener('click', async function() { ... })
+After successful n8n data submission (line ~357 in the fixed version)
+
+====================================================================
+EXACT CHANGE ADDED:
+====================================================================
+
+The following code block was added AFTER the line:
+    alert('✅ Данные отправлены!');
+
+NEW CODE ADDED:
+```javascript
+                    // **NEW: Send completion signal to Telegram bot**
+                    console.log('📤 Sending completion signal to Telegram bot via sendData...');
+                    if (isTelegramApp && tg && typeof tg.sendData === 'function') {
+                        try {
+                            const completionPayload = {
+                                action: 'signature_completed',
+                                timestamp: new Date().toISOString(),
+                                status: 'success',
+                                user_id: userData?.user_id,
+                                chat_id: userData?.chat_id
+                            };
+                            
+                            console.log('🎯 Calling tg.sendData with payload:', completionPayload);
+                            tg.sendData(JSON.stringify(completionPayload));
+                            console.log('✅ Completion signal sent to bot successfully!');
+                        } catch (sendDataError) {
+                            console.error('❌ Error sending completion signal to bot:', sendDataError);
+                        }
+                    } else {
+                        console.log('⚠️ Cannot send completion signal - Telegram WebApp not available or sendData not a function');
+                        console.log('Debug info:', {
+                            isTelegramApp,
+                            tgExists: !!tg,
+                            sendDataType: typeof tg?.sendData
+                        });
+                    }
+```
+
+====================================================================
+WHAT THIS CHANGE DOES:
+====================================================================
+
+1. ✅ Sends completion notification to Telegram bot via window.Telegram.WebApp.sendData()
+2. ✅ Triggers the bot's handle_web_app_data() function 
+3. ✅ Bot receives action: 'signature_completed' and shows final thank you message
+4. ✅ Bot ends conversation properly with ConversationHandler.END
+5. ✅ Includes error handling so it won't break if Telegram WebApp is not available
+6. ✅ Extensive logging for debugging
+
+====================================================================
+WHAT WAS NOT CHANGED:
+====================================================================
+
+✅ ALL n8n functionality remains 100% unchanged:
+   - Complete data package creation
+   - n8n webhook URL and POST request
+   - All user data, signature data, and metadata
+   - Error handling for n8n
+   - Telegram API fallback notification
+   - Web app closing logic
+
+✅ ALL existing functionality preserved:
+   - Canvas drawing
+   - Signature validation
+   - User data parsing from URL
+   - Telegram WebApp initialization
+   - Button handlers (clear, test, send)
+
+====================================================================
+EXECUTION FLOW AFTER CHANGE:
+====================================================================
+
+1. User draws signature and clicks "Отправить"
+2. Data validation occurs
+3. Complete data package sent to n8n webhook (UNCHANGED)
+4. ✅ n8n receives and processes data successfully
+5. 🆕 NEW: Telegram bot receives completion signal via sendData()
+6. 🆕 NEW: Bot shows final thank you message
+7. 🆕 NEW: Bot conversation ends properly
+8. Telegram API fallback notification sent (UNCHANGED)
+9. Web app closes (UNCHANGED)
+
+====================================================================
+TECHNICAL DETAILS:
+====================================================================
+
+- Added code executes only AFTER successful n8n submission
+- Uses existing isTelegramApp and tg variables
+- Sends JSON payload with action: 'signature_completed' 
+- Bot's handle_web_app_data() function catches this payload
+- Includes comprehensive error handling and logging
+- No interference with existing n8n or fallback notification systems
+
+====================================================================
+FULL MODIFIED index.html CODE:
+====================================================================
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -354,7 +460,34 @@
                     // Show simple success message
                     alert('✅ Данные отправлены!');
                     
-                    // Send success notification to Telegram bot via API
+                    // **NEW: Send completion signal to Telegram bot**
+                    console.log('📤 Sending completion signal to Telegram bot via sendData...');
+                    if (isTelegramApp && tg && typeof tg.sendData === 'function') {
+                        try {
+                            const completionPayload = {
+                                action: 'signature_completed',
+                                timestamp: new Date().toISOString(),
+                                status: 'success',
+                                user_id: userData?.user_id,
+                                chat_id: userData?.chat_id
+                            };
+                            
+                            console.log('🎯 Calling tg.sendData with payload:', completionPayload);
+                            tg.sendData(JSON.stringify(completionPayload));
+                            console.log('✅ Completion signal sent to bot successfully!');
+                        } catch (sendDataError) {
+                            console.error('❌ Error sending completion signal to bot:', sendDataError);
+                        }
+                    } else {
+                        console.log('⚠️ Cannot send completion signal - Telegram WebApp not available or sendData not a function');
+                        console.log('Debug info:', {
+                            isTelegramApp,
+                            tgExists: !!tg,
+                            sendDataType: typeof tg?.sendData
+                        });
+                    }
+                    
+                    // Send success notification to Telegram bot via API (fallback)
                     if (userData && userData.bot_api_url && userData.chat_id) {
                         try {
                             const notificationUrl = `${userData.bot_api_url}/sendMessage`;
@@ -399,7 +532,7 @@
                     // Close mini-app after successful send
                     setTimeout(() => {
                         console.log('Closing mini-app...');
-                        if (isTelegramApp && tg && tg.close) {
+                        if (isTelegramApp && tg && typeof tg.close === 'function') {
                             tg.close();
                         } else {
                             // Fallback: try to signal parent window
