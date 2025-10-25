@@ -358,13 +358,15 @@
                     if (userData && userData.bot_api_url && userData.chat_id) {
                         try {
                             const notificationUrl = `${userData.bot_api_url}/sendMessage`;
+                            const currentTime = new Date().toLocaleString('ru-RU');
                             const notificationData = {
                                 chat_id: userData.chat_id,
-                                text: '✅ *Анкета успешно заполнена и отправлена!*\n\n🎉 Спасибо за заполнение! Ваши данные переданы в систему.\n\n📄 Все данные включая подпись сохранены и обработаны.',
+                                text: `✅ *Анкета успешно заполнена и отправлена!*\n\n🎉 Спасибо за заполнение медицинской анкеты!\n\n📋 Ваши данные включая подпись переданы в систему обработки.\n\n⏰ Время отправки: ${currentTime}\n\n📄 Все данные сохранены и будут обработаны в ближайшее время.`,
                                 parse_mode: 'Markdown'
                             };
                             
-                            console.log('📤 Sending success notification to Telegram...');
+                            console.log('📤 Sending completion notification to Telegram chat:', userData.chat_id);
+                            
                             fetch(notificationUrl, {
                                 method: 'POST',
                                 headers: {
@@ -373,16 +375,25 @@
                                 body: JSON.stringify(notificationData)
                             }).then(notifResponse => {
                                 if (notifResponse.ok) {
-                                    console.log('✅ Success notification sent to Telegram');
+                                    console.log('✅ Completion notification sent to Telegram successfully');
+                                    return notifResponse.json();
                                 } else {
-                                    console.log('⚠️ Failed to send notification to Telegram:', notifResponse.status);
+                                    console.log('⚠️ Failed to send notification to Telegram. Status:', notifResponse.status);
+                                    throw new Error(`Telegram API responded with status: ${notifResponse.status}`);
                                 }
+                            }).then(telegramResponse => {
+                                console.log('📨 Telegram API response:', telegramResponse);
                             }).catch(notifError => {
-                                console.log('⚠️ Error sending notification:', notifError);
+                                console.log('❌ Error sending completion notification to Telegram:', notifError);
                             });
                         } catch (notifError) {
-                            console.log('⚠️ Error preparing notification:', notifError);
+                            console.log('❌ Error preparing Telegram notification:', notifError);
                         }
+                    } else {
+                        console.log('⚠️ Missing Telegram bot API data for notification:', {
+                            has_bot_api_url: !!userData?.bot_api_url,
+                            has_chat_id: !!userData?.chat_id
+                        });
                     }
                     
                     // Close mini-app after successful send
