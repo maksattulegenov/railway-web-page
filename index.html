@@ -141,18 +141,29 @@
         
         sendBtn.addEventListener('click', function() {
             console.log('Send clicked');
+            console.log('Telegram object:', window.Telegram);
+            console.log('WebApp object:', window.Telegram ? window.Telegram.WebApp : 'undefined');
+            
             const imageData = canvas.toDataURL('image/png');
+            console.log('Image data length:', imageData.length);
             
             // Check if in Telegram
             if (window.Telegram && window.Telegram.WebApp) {
+                console.log('In Telegram WebApp context');
                 const tg = window.Telegram.WebApp;
-                tg.sendData(JSON.stringify({
+                const dataToSend = {
+                    action: 'signature_completed',
                     type: 'signature_saved',
                     image: imageData,
                     timestamp: Date.now()
-                }));
+                };
+                console.log('Sending data:', dataToSend);
+                tg.sendData(JSON.stringify(dataToSend));
+                console.log('Data sent, closing app');
                 tg.close();
             } else {
+                console.log('Not in Telegram context, downloading file');
+                alert('Не в контексте Telegram WebApp. Файл будет скачан.');
                 // Download in browser
                 const link = document.createElement('a');
                 link.download = 'signature.png';
