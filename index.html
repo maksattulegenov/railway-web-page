@@ -1,109 +1,3 @@
-====================================================================
-CHANGES MADE TO index.html FOR TELEGRAM BOT COMPLETION NOTIFICATION
-====================================================================
-
-PURPOSE: Add Telegram WebApp sendData() call to notify the bot when signature is completed,
-so the bot can show the final thank you message and end the conversation properly.
-
-LOCATION OF CHANGE: Inside sendBtn.addEventListener('click', async function() { ... })
-After successful n8n data submission (line ~357 in the fixed version)
-
-====================================================================
-EXACT CHANGE ADDED:
-====================================================================
-
-The following code block was added AFTER the line:
-    alert('✅ Данные отправлены!');
-
-NEW CODE ADDED:
-```javascript
-                    // **NEW: Send completion signal to Telegram bot**
-                    console.log('📤 Sending completion signal to Telegram bot via sendData...');
-                    if (isTelegramApp && tg && typeof tg.sendData === 'function') {
-                        try {
-                            const completionPayload = {
-                                action: 'signature_completed',
-                                timestamp: new Date().toISOString(),
-                                status: 'success',
-                                user_id: userData?.user_id,
-                                chat_id: userData?.chat_id
-                            };
-                            
-                            console.log('🎯 Calling tg.sendData with payload:', completionPayload);
-                            tg.sendData(JSON.stringify(completionPayload));
-                            console.log('✅ Completion signal sent to bot successfully!');
-                        } catch (sendDataError) {
-                            console.error('❌ Error sending completion signal to bot:', sendDataError);
-                        }
-                    } else {
-                        console.log('⚠️ Cannot send completion signal - Telegram WebApp not available or sendData not a function');
-                        console.log('Debug info:', {
-                            isTelegramApp,
-                            tgExists: !!tg,
-                            sendDataType: typeof tg?.sendData
-                        });
-                    }
-```
-
-====================================================================
-WHAT THIS CHANGE DOES:
-====================================================================
-
-1. ✅ Sends completion notification to Telegram bot via window.Telegram.WebApp.sendData()
-2. ✅ Triggers the bot's handle_web_app_data() function 
-3. ✅ Bot receives action: 'signature_completed' and shows final thank you message
-4. ✅ Bot ends conversation properly with ConversationHandler.END
-5. ✅ Includes error handling so it won't break if Telegram WebApp is not available
-6. ✅ Extensive logging for debugging
-
-====================================================================
-WHAT WAS NOT CHANGED:
-====================================================================
-
-✅ ALL n8n functionality remains 100% unchanged:
-   - Complete data package creation
-   - n8n webhook URL and POST request
-   - All user data, signature data, and metadata
-   - Error handling for n8n
-   - Telegram API fallback notification
-   - Web app closing logic
-
-✅ ALL existing functionality preserved:
-   - Canvas drawing
-   - Signature validation
-   - User data parsing from URL
-   - Telegram WebApp initialization
-   - Button handlers (clear, test, send)
-
-====================================================================
-EXECUTION FLOW AFTER CHANGE:
-====================================================================
-
-1. User draws signature and clicks "Отправить"
-2. Data validation occurs
-3. Complete data package sent to n8n webhook (UNCHANGED)
-4. ✅ n8n receives and processes data successfully
-5. 🆕 NEW: Telegram bot receives completion signal via sendData()
-6. 🆕 NEW: Bot shows final thank you message
-7. 🆕 NEW: Bot conversation ends properly
-8. Telegram API fallback notification sent (UNCHANGED)
-9. Web app closes (UNCHANGED)
-
-====================================================================
-TECHNICAL DETAILS:
-====================================================================
-
-- Added code executes only AFTER successful n8n submission
-- Uses existing isTelegramApp and tg variables
-- Sends JSON payload with action: 'signature_completed' 
-- Bot's handle_web_app_data() function catches this payload
-- Includes comprehensive error handling and logging
-- No interference with existing n8n or fallback notification systems
-
-====================================================================
-FULL MODIFIED index.html CODE:
-====================================================================
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -152,56 +46,6 @@ FULL MODIFIED index.html CODE:
 
     <script>
         console.log('Script started');
-        
-        // Check for data from Telegram bot
-        let userData = null;
-        const urlParams = new URLSearchParams(window.location.search);
-        const dataParam = urlParams.get('data');
-        
-        if (dataParam) {
-            try {
-                userData = JSON.parse(decodeURIComponent(dataParam));
-                console.log('📦 Received user data from bot:', userData);
-                
-                // Show user info in the header
-                const header = document.querySelector('h1');
-                if (userData.fio) {
-                    header.textContent = `Подпись для ${userData.fio}`;
-                    header.style.fontSize = '20px';
-                }
-            } catch (error) {
-                console.error('❌ Error parsing user data:', error);
-                userData = null;
-            }
-        }
-        
-        // Initialize Telegram Web App
-        let tg = window.Telegram?.WebApp;
-        let isTelegramApp = !!tg;
-        
-        console.log('Telegram Web App detected:', isTelegramApp);
-        console.log('Telegram object:', window.Telegram);
-        console.log('WebApp object:', tg);
-        console.log('User data from URL:', userData);
-        
-        if (tg) {
-            console.log('Initializing Telegram WebApp...');
-            tg.ready();
-            tg.expand();
-            
-            // Wait a moment for initialization
-            setTimeout(() => {
-                console.log('Telegram Web App initialized');
-                console.log('WebApp ready state:', tg.isReady);
-                console.log('User data:', tg.initDataUnsafe?.user);
-                console.log('Available methods:', {
-                    sendData: typeof tg.sendData,
-                    close: typeof tg.close,
-                    expand: typeof tg.expand,
-                    ready: typeof tg.ready
-                });
-            }, 100);
-        }
         
         // Get elements
         const canvas = document.getElementById('canvas');
@@ -295,277 +139,38 @@ FULL MODIFIED index.html CODE:
             ctx.stroke();
         });
         
-        sendBtn.addEventListener('click', async function() {
+        sendBtn.addEventListener('click', function() {
             console.log('Send clicked');
+            const imageData = canvas.toDataURL('image/png');
             
-            // Check if canvas has content
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const pixels = imageData.data;
-            let hasContent = false;
-            
-            for (let i = 0; i < pixels.length; i += 4) {
-                if (pixels[i] !== 255 || pixels[i + 1] !== 255 || pixels[i + 2] !== 255) {
-                    hasContent = true;
-                    break;
-                }
-            }
-            
-            if (!hasContent) {
-                alert('Пожалуйста, нарисуйте подпись!');
-                return;
-            }
-            
-            const signatureData = canvas.toDataURL('image/png');
-            console.log('Signature created, size:', signatureData.length);
-            
-            // Prepare complete data package with ALL received information
-            const completeData = {
-                // Include ALL data from userData first (spread all received data from bot)
-                ...userData,
-                
-                // Core form data (override if needed)
-                type: 'complete_form_data',
-                timestamp: Date.now(),
-                
-                // Basic user information (ensure they exist)
-                fio: userData?.fio || 'Unknown',
-                birth_date: userData?.birth_date || 'Unknown', 
-                phone: userData?.phone || 'Unknown',
-                iin: userData?.iin || 'Unknown',
-                gender: userData?.gender || 'Unknown',
-                
-                // Examination information
-                examination_for: userData?.examination_for || 'Unknown',
-                examination_for_key: userData?.examination_for_key || 'Unknown',
-                
-                // Representative information (for minors)
-                representative_fio: userData?.representative_fio || '',
-                representative_relation: userData?.representative_relation || '',
-                
-                // Medical information
-                allergy: userData?.allergy || 'Unknown',
-                allergy_status: userData?.allergy_status || '',
-                prohibited_procedures: userData?.prohibited_procedures || 'Unknown',
-                
-                // Contact person information
-                contact_person: userData?.contact_person || {},
-                contact_person_fio: userData?.contact_person_fio || '',
-                contact_person_relation: userData?.contact_person_relation || '',
-                
-                // Additional consent information
-                minor_consent: userData?.minor_consent || '',
-                
-                // Telegram user info
-                user_id: userData?.user_id || 'Unknown',
-                chat_id: userData?.chat_id || 'Unknown',
-                
-                // Bot API information for n8n responses
-                bot_token: userData?.bot_token || '',
-                bot_api_url: userData?.bot_api_url || '',
-                
-                // Signature data
-                signature_image: signatureData, // Full base64 data URL
-                signature_base64: signatureData.replace('data:image/png;base64,', ''), // Clean base64
-                
-                // Additional metadata
-                source: 'webapp_direct',
-                user_agent: navigator.userAgent,
-                screen_resolution: `${screen.width}x${screen.height}`
-            };
-            
-            // Remove redundant fields to avoid duplication
-            delete completeData.n8n_webhook;
-            
-            console.log('📦 Complete data package being sent to n8n:', {
-                type: completeData.type,
-                timestamp: completeData.timestamp,
-                basic_user_data: {
-                    fio: completeData.fio,
-                    birth_date: completeData.birth_date,
-                    phone: completeData.phone,
-                    iin: completeData.iin,
-                    gender: completeData.gender,
-                    user_id: completeData.user_id,
-                    chat_id: completeData.chat_id
-                },
-                examination_data: {
-                    examination_for: completeData.examination_for,
-                    examination_for_key: completeData.examination_for_key
-                },
-                representative_data: {
-                    representative_fio: completeData.representative_fio,
-                    representative_relation: completeData.representative_relation
-                },
-                medical_data: {
-                    allergy: completeData.allergy,
-                    allergy_status: completeData.allergy_status,
-                    prohibited_procedures: completeData.prohibited_procedures
-                },
-                contact_person_data: {
-                    contact_person: completeData.contact_person,
-                    contact_person_fio: completeData.contact_person_fio,
-                    contact_person_relation: completeData.contact_person_relation
-                },
-                consent_data: {
-                    minor_consent: completeData.minor_consent
-                },
-                signature_data: {
-                    has_signature_image: !!completeData.signature_image,
-                    signature_image_size: completeData.signature_image?.length || 0,
-                    has_clean_base64: !!completeData.signature_base64,
-                    signature_base64_size: completeData.signature_base64?.length || 0
-                },
-                bot_integration: {
-                    has_bot_token: !!completeData.bot_token,
-                    has_bot_api_url: !!completeData.bot_api_url
-                },
-                metadata: {
-                    source: completeData.source,
-                    user_agent: completeData.user_agent,
-                    screen_resolution: completeData.screen_resolution
-                },
-                all_received_fields: Object.keys(completeData).sort()
-            });
-            
-            // Send directly to n8n webhook
-            const webhookUrl = userData?.n8n_webhook || 'https://primary-production-7d413.up.railway.app/webhook-test/promed';
-            
-            try {
-                console.log('🌐 Sending complete data package to n8n webhook:', webhookUrl);
-                console.log('📋 Data size:', JSON.stringify(completeData).length, 'characters');
-                console.log('🔍 First 200 chars of payload:', JSON.stringify(completeData).substring(0, 200) + '...');
-                
-                sendBtn.textContent = 'Отправка...';
-                sendBtn.disabled = true;
-                
-                const response = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(completeData)
-                });
-                
-                console.log('📡 n8n Response status:', response.status, response.statusText);
-                
-                if (response.ok) {
-                    const responseText = await response.text();
-                    console.log('✅ n8n Response:', responseText);
-                    console.log('✅ Complete data package sent to n8n successfully!');
-                    
-                    sendBtn.textContent = 'Отправлено!';
-                    sendBtn.style.background = '#28a745';
-                    
-                    // Show simple success message
-                    alert('✅ Данные отправлены!');
-                    
-                    // **NEW: Send completion signal to Telegram bot**
-                    console.log('📤 Sending completion signal to Telegram bot via sendData...');
-                    if (isTelegramApp && tg && typeof tg.sendData === 'function') {
-                        try {
-                            const completionPayload = {
-                                action: 'signature_completed',
-                                timestamp: new Date().toISOString(),
-                                status: 'success',
-                                user_id: userData?.user_id,
-                                chat_id: userData?.chat_id
-                            };
-                            
-                            console.log('🎯 Calling tg.sendData with payload:', completionPayload);
-                            tg.sendData(JSON.stringify(completionPayload));
-                            console.log('✅ Completion signal sent to bot successfully!');
-                        } catch (sendDataError) {
-                            console.error('❌ Error sending completion signal to bot:', sendDataError);
-                        }
-                    } else {
-                        console.log('⚠️ Cannot send completion signal - Telegram WebApp not available or sendData not a function');
-                        console.log('Debug info:', {
-                            isTelegramApp,
-                            tgExists: !!tg,
-                            sendDataType: typeof tg?.sendData
-                        });
-                    }
-                    
-                    // Send success notification to Telegram bot via API (fallback)
-                    if (userData && userData.bot_api_url && userData.chat_id) {
-                        try {
-                            const notificationUrl = `${userData.bot_api_url}/sendMessage`;
-                            const currentTime = new Date().toLocaleString('ru-RU');
-                            const notificationData = {
-                                chat_id: userData.chat_id,
-                                text: `✅ *Анкета успешно заполнена и отправлена!*\n\n🎉 Спасибо за заполнение медицинской анкеты!\n\n📋 Ваши данные включая подпись переданы в систему обработки.\n\n⏰ Время отправки: ${currentTime}\n\n📄 Все данные сохранены и будут обработаны в ближайшее время.`,
-                                parse_mode: 'Markdown'
-                            };
-                            
-                            console.log('📤 Sending completion notification to Telegram chat:', userData.chat_id);
-                            
-                            fetch(notificationUrl, {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify(notificationData)
-                            }).then(notifResponse => {
-                                if (notifResponse.ok) {
-                                    console.log('✅ Completion notification sent to Telegram successfully');
-                                    return notifResponse.json();
-                                } else {
-                                    console.log('⚠️ Failed to send notification to Telegram. Status:', notifResponse.status);
-                                    throw new Error(`Telegram API responded with status: ${notifResponse.status}`);
-                                }
-                            }).then(telegramResponse => {
-                                console.log('📨 Telegram API response:', telegramResponse);
-                            }).catch(notifError => {
-                                console.log('❌ Error sending completion notification to Telegram:', notifError);
-                            });
-                        } catch (notifError) {
-                            console.log('❌ Error preparing Telegram notification:', notifError);
-                        }
-                    } else {
-                        console.log('⚠️ Missing Telegram bot API data for notification:', {
-                            has_bot_api_url: !!userData?.bot_api_url,
-                            has_chat_id: !!userData?.chat_id
-                        });
-                    }
-                    
-                    // Close mini-app after successful send
-                    setTimeout(() => {
-                        console.log('Closing mini-app...');
-                        if (isTelegramApp && tg && typeof tg.close === 'function') {
-                            tg.close();
-                        } else {
-                            // Fallback: try to signal parent window
-                            window.parent.postMessage({ type: 'close_webapp' }, '*');
-                        }
-                    }, 1500);
-                    
-                } else {
-                    const errorText = await response.text();
-                    console.error('❌ n8n webhook error response:', errorText);
-                    throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
-                }
-                
-            } catch (error) {
-                console.error('❌ Error sending complete data package to n8n:', error);
-                console.error('❌ Error details:', {
-                    message: error.message,
-                    stack: error.stack,
-                    webhookUrl: webhookUrl,
-                    dataSize: JSON.stringify(completeData).length
-                });
-                
-                sendBtn.textContent = 'Ошибка!';
-                sendBtn.style.background = '#dc3545';
-                sendBtn.disabled = false;
-                
-                alert(`❌ Ошибка отправки данных в n8n.\n\nОшибка: ${error.message}\n\nПопробуйте еще раз.`);
+            // Check if in Telegram
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.sendData(JSON.stringify({
+                    type: 'signature_saved',
+                    image: imageData,
+                    timestamp: Date.now()
+                }));
+                tg.close();
+            } else {
+                // Download in browser
+                const link = document.createElement('a');
+                link.download = 'signature.png';
+                link.href = imageData;
+                link.click();
             }
         });
         
         // Initialize
         initCanvas();
         console.log('App initialized');
+        
+        // Test canvas works
+        setTimeout(function() {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(10, 10, 20, 20);
+            console.log('Test red square drawn');
+        }, 1000);
         
     </script>
 </body>
