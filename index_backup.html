@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Цифровая подпись</title>
+    <title>Подпись</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -30,17 +31,17 @@
             font-weight: bold;
         }
         #clearBtn { background: #dc3545; color: white; }
-        #sendBtn { background: #007bff; color: white; }
+        #sendBtn { background: #28a745; color: white; }
         #testBtn { background: #007bff; color: white; }
     </style>
 </head>
 <body>
-    <h1>Создать цифровую подпись</h1>
+    <h1>Нарисуйте подпись</h1>
     <canvas id="canvas" width="350" height="180"></canvas>
     <div>
         <button id="clearBtn">Очистить</button>
         <button id="testBtn">Тест</button>
-        <button id="sendBtn">Сохранить</button>
+        <button id="sendBtn">Отправить</button>
     </div>
 
     <script>
@@ -139,49 +140,25 @@
         });
         
         sendBtn.addEventListener('click', function() {
-            console.log('Save clicked');
-            
-            // Check if canvas has any drawing
+            console.log('Send clicked');
             const imageData = canvas.toDataURL('image/png');
             
-            // Check if canvas is blank (only background)
-            const blankCanvas = document.createElement('canvas');
-            blankCanvas.width = canvas.width;
-            blankCanvas.height = canvas.height;
-            const blankCtx = blankCanvas.getContext('2d');
-            blankCtx.fillStyle = '#ffffff';
-            blankCtx.fillRect(0, 0, blankCanvas.width, blankCanvas.height);
-            const blankData = blankCanvas.toDataURL('image/png');
-            
-            if (imageData === blankData) {
-                alert('Пожалуйста, нарисуйте подпись перед сохранением!');
-                return;
+            // Check if in Telegram
+            if (window.Telegram && window.Telegram.WebApp) {
+                const tg = window.Telegram.WebApp;
+                tg.sendData(JSON.stringify({
+                    type: 'signature_saved',
+                    image: imageData,
+                    timestamp: Date.now()
+                }));
+                tg.close();
+            } else {
+                // Download in browser
+                const link = document.createElement('a');
+                link.download = 'signature.png';
+                link.href = imageData;
+                link.click();
             }
-            
-            console.log('Downloading signature image...');
-            
-            // Create download link
-            const link = document.createElement('a');
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-            link.download = `signature_${timestamp}.png`;
-            link.href = imageData;
-            
-            // Trigger download
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            console.log('Signature saved successfully');
-            
-            // Update button to show success
-            const originalText = sendBtn.textContent;
-            sendBtn.textContent = 'Сохранено!';
-            sendBtn.style.background = '#28a745';
-            
-            setTimeout(() => {
-                sendBtn.textContent = originalText;
-                sendBtn.style.background = '#007bff';
-            }, 2000);
         });
         
         // Initialize
